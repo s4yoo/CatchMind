@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <link rel="stylesheet" href="/farbtastic.css" />
+  <script src="//code.jquery.com/jquery-1.12.4.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/farbtastic.js"></script>
+  <script>
+    function Point(event, target){
+      this.x = event.pageX - $(target).position().left;
+      this.y = event.pageY - $(target).position().top;
+    }
+  </script>
+  <script>
+    $(document).ready(function(){
+
+      var canvas = document.getElementById('canvas');
+      var context = canvas.getContext('2d');
+
+      var width = 5;
+      var opacity = 1.0;
+      var pressure = 1.0;
+      var color = '#000000';
+      var isDown = false;
+      var newPoint, oldPoint;
+
+      var master = null;
+
+      $('#colorpicker').farbtastic(function (data){
+        color = data;
+      })
+
+      canvas.addEventListener('mousedown', function (event){
+        isDown = true;
+        oldPoint = new Point(event, this);
+      });
+
+      canvas.addEventListener('mouseup', function () { isDown = false; });
+
+      canvas.addEventListener('mousemove', function (event){
+        if(isDown){
+          newPoint = new Point(event, this);
+          socket.emit('draw', {
+            width: width,
+            color: color,
+            x1: oldPoint.x,
+            y1: oldPoint.y,
+            x2: newPoint.x,
+            y2: newPoint.y
+          });
+          oldPoint = newPoint;
+        }
+      });
+
+      $('#sliderA').change(function (){
+        width = $(this).val();
+      });
+
+      $('#sliderB').change(function (){
+        opacity = $(this).val() / 100;
+      });
+
+      var socket = io.connect();
+
+      socket.emit('joinRoom', {room_id: '<%= room %>'});
+
+      socket.emit('playerList', {
+        room_id: '<%= room %>',
+        uid: $('#name').val()
+      });
+
+      sockdet.on('changeMaster', function(data){
+        master = data.uid;
+        if(master == $('#name').val()) {
+          $('div.draw=utility').show();
+          $('#message').prop({'disabled': false});
+          $('#message-button').show();
+          $('#message-none').hide();
+          $('div.overlay-guest').hide();
+          $('#play-button').show();
+          $('#answer').html('');
+          $('#answer').hide();
+        } else {
+          $('div.draw-utility').show();
+          $('#message').prop({'disabled': false});
+          $('#message-button').show();
+          $('#message-none').hide();
+          $('div.overlay-guest').hide();
+          $('#play-button').hide();
+          $('#answer').html('');
+          $('#answer').hide();
+        }
+
+        context.strokeStyle = '#000000';
+        context.lineWidth = 1;
+
+        $('#color-picker div').css({'background-color' : '#000000'});
+        $('#stroke-size > div').slider('valve', 1);
+
+        socket.emit('changeCanvasColor', {
+          room_id: room_id,
+          hex: '000000'
+        });
+
+        socket.emit('changeCanvasStroke', {
+          room_id: room_id,
+          stroke: 1
+        });
+
+        socket.emit('playerList', {
+          room_id: room_id,
+          uid: ('#name').val()
+        });
+      });
+
+      socket.on('line', function(data){
+        context.lineWidth = data.width;
+        context.strokeStyle = data.color;
+        context.globalAlpha = opacity * pressure;
+        context.beginPath();
+        context.moveTo(data.x1, data.y1);
+        context.lineTo(data.x2, data.y2);
+        context.stroke();
+      });
+
+      socket.on('message', function(data){
+        var output = '';
+        output += '<li>';
+        output += ' <h3>' + data.name + '</h3>';
+        output += ' <p>' + data.message + '</p>';
+        output += ' <p>' + data.date + '</p>';
+        output += '</li>';
+        $(output).prependTo('#content');
+      });
+
+      $('#send').click(function(){
+        socket.emit('message',{
+          name: $('#name').val(),
+          message: $('#message').val(),
+          date: new Date().toUTCString()
+        });
+
+        $('#message').val('');
+        $('#message').focus();
+      });
+
+      $('#leave').click(function(){
+        socket.emit('leave')
+      });
+    });
+  </script>
+  <script>
+  </script>
+  <style>
+    .wapper{
+      height : 500px;
+      overflow-y: scroll;
+    }
+  </style>
+</head>
+<body>
+  <input id="name" value="<%= user %>" disabled type="hidden" />
+  <table border = "10">
+    <tr>
+      <td rowspan="6">
+        <!--캔버스-->
+        <canvas id="canvas" width="1200" height="800"></canvas>
+      </td>
+      <td height="200">
+        <!--색상 선택기-->
+        <div id="colorpicker"></div>
+      </td>
+    </tr>
+    <tr>
+      <td height="25">
+        <!--슬리아더: 두께 선택-->
+        <input id="sliderA" type="range" min="0" max="20" value="5" /><br />
+        <input id="sliderB" type="range" min="0" max="100" />
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <input type="button" onclick="location.href='/lobby'" id="leave" value="Leave">
+      </td>
+    </tr>
+    <tr>
+      <td height="30">
+        <input id="message" />
+        <button type="submit" id="send">send</button>
+      </td>
+    <tr>
+      <td>
+        <div class="wapper">
+          <ul id="content">
+          </ul>
+        </div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

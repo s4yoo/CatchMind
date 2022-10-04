@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lobby Page</title>
+  <script src="//code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/jquery.cookie.js"></script>
+  <script>
+/*    $(document).ready(function(){
+      $.getJSON('/room', function (data){//roomArray를 가져와 화면에 버튼 생성
+        $.each(data, function (index, item){
+          $('<button></button>').attr({
+            'data-room': item
+          }).text('Room Name : ' + item).appendTo('#container');
+        });
+      });
+*/
+      var socket = io.connect(); // socket연결
+
+      socket.emit('getRoomList');
+
+      socket.on('getRoomList', function(data){
+        $('#room-list').find('tbody').empty();
+        if((data.room.length) > 0){
+          $.each(data.room, function(sort, data){
+			         $('<tr><td style="height:30px; line-height:30px; border:1px solid #d0d0d0;">' + data.title + '</td><td style="height:30px; line-height:30px; border:1px solid #d0d0d0;">' + data.count + '</td><td style="height:30px; line-height:30px; border:1px solid #d0d0d0;"><input type="button" value="입장하기" onclick="javascript:joinRoom(\'' + data.id + '\');" /></td></tr>').appendTo($('#room-list').find('tbody'));
+          });
+        } else {
+          	$('<tr><td colspan="3" style="height:30px; line-height:30px; border:1px solid #d0d0d0; text-align:center;">생성된 방이 없습니다.</td></tr>').appendTo($('#room-list').find('tbody'));
+        }
+      });
+
+  /*    socket.on('join', function (data){ //방생성에 연결
+        $('<button></button>').attr({
+          'data-room': data
+        }).text('Room Name : ' + data).appendTo('#container');
+      });
+
+      $('#container').on('click', 'button', function(){
+        var room = $(this).attr('data-room');
+
+        location = '/canvas/' + room;
+      });
+  /*   $('body > button').click(function(){
+        var room = $('#room').val();
+
+        socket.emit('makeRoom', {uid: $.cookie('user'), title: room});
+        //socket.emit('join', room);
+        location = '/canvas/' + room;
+      });*/
+      function makeRoom(){
+        if(!$.trim($('#room').val())){
+          alert('방 제목을 입력해주세요.');
+          $('room').focus();
+          return false;
+        }
+        socket.emit('makeRoom', {
+          uid: "<%= user %>",
+          title: $('#room').val()
+        });
+        location = '/canvas/' + $('#room').val();
+      };
+
+      function joinRoom(id){
+        socket.emit('joinRoom', {room_id: id});
+        location = '/canvas/' + id;
+      }
+  </script>
+</head>
+<body>
+  <h1>Catch Mind</h1>
+  <span>ROOM : </span>
+  <input id="room" />
+  <button onclick="makeRoom();">CREATE ROOM</button>
+  <hr />
+  <div id="container">
+    <table id="room-list" style="width:800px; height:100px; margin:0 auto; border-collapse:collapse;">
+    	<colgroup>
+    		<col width="75%" />
+    		<col width="10%" />
+    		<col width="15%" />
+    	</colgroup>
+    	<thead>
+    		<tr>
+    			<th style="height:30px; line-height:30px; border:1px solid #d0d0d0; background-color:#eeeeee;">제목</th>
+    			<th style="height:30px; line-height:30px; border:1px solid #d0d0d0; background-color:#eeeeee;">인원</th>
+    			<th style="height:30px; line-height:30px; border:1px solid #d0d0d0; background-color:#eeeeee;">입장하기</th>
+    		</tr>
+    	</thead>
+    	<tbody>
+    	</tbody>
+    </table>
+  </div>
+</body>
+</html>
